@@ -32,6 +32,8 @@ class VerifyOtpRequest(BaseModel):
         return v
 
 class UserResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
     id: str
     phone_e164: str
     account_status: str
@@ -39,9 +41,6 @@ class UserResponse(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone_verified_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
 
 class VerifyOtpResponse(BaseModel):
     access_token: str

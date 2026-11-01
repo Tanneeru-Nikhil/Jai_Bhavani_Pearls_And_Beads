@@ -23,17 +23,43 @@ def init_db():
     c.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
+        email TEXT UNIQUE,
+        password_hash TEXT,
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL,
         phone TEXT,
+        phone_e164 TEXT UNIQUE,
         role TEXT NOT NULL DEFAULT 'customer',
+        account_status TEXT NOT NULL DEFAULT 'active',
         email_verified INTEGER NOT NULL DEFAULT 1,
         is_active INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL
+        phone_verified_at TEXT,
+        last_authenticated_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT
     )
     """)
+
+    # Column reconciliation for pre-existing tables
+    c.execute("PRAGMA table_info(users)")
+    existing_cols = {row["name"] for row in c.fetchall()}
+    columns_to_ensure = [
+        ("phone", "TEXT"),
+        ("phone_e164", "TEXT"),
+        ("account_status", "TEXT DEFAULT 'active'"),
+        ("is_active", "INTEGER DEFAULT 1"),
+        ("email_verified", "INTEGER DEFAULT 1"),
+        ("phone_verified_at", "TEXT"),
+        ("last_authenticated_at", "TEXT"),
+        ("updated_at", "TEXT"),
+    ]
+    for col_name, col_type in columns_to_ensure:
+        if col_name not in existing_cols:
+            try:
+                c.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            except sqlite3.OperationalError:
+                pass
+    conn.commit()
 
     # Addresses table
     c.execute("""
@@ -206,27 +232,30 @@ def seed_data(conn):
     c = conn.cursor()
 
     # Check if admin user already exists
-    c.execute("SELECT COUNT(*) FROM users WHERE email = 'admin@jaibhavani.com'")
+    c.execute("SELECT COUNT(*) FROM users WHERE email = 'admin@jaibhavani.com' OR phone_e164 = '+919876543210'")
     if c.fetchone()[0] == 0:
         admin_id = str(uuid.uuid4())
         now = datetime.utcnow().isoformat() + "Z"
         # Create Admin
         c.execute("""
-        INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, email_verified, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?)
-        """, (admin_id, "admin@jaibhavani.com", hash_password("admin123"), "Bhavani", "Admin", "+91 9876543210", "admin", now))
+        INSERT OR IGNORE INTO users (id, email, password_hash, first_name, last_name, phone, phone_e164, role, account_status, email_verified, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 1, ?, ?)
+        """, (admin_id, "admin@jaibhavani.com", hash_password("admin123"), "Bhavani", "Admin", "+91 9876543210", "+919876543210", "admin", now, now))
 
-        # Create Demo Customer
+    # Check if demo customer exists
+    c.execute("SELECT COUNT(*) FROM users WHERE email = 'customer@jaibhavani.com' OR phone_e164 = '+919811122233'")
+    if c.fetchone()[0] == 0:
+        now = datetime.utcnow().isoformat() + "Z"
         cust_id = str(uuid.uuid4())
         c.execute("""
-        INSERT INTO users (id, email, password_hash, first_name, last_name, phone, role, email_verified, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?)
-        """, (cust_id, "customer@jaibhavani.com", hash_password("customer123"), "Priya", "Sharma", "+91 9811122233", "customer", now))
+        INSERT OR IGNORE INTO users (id, email, password_hash, first_name, last_name, phone, phone_e164, role, account_status, email_verified, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', 1, 1, ?, ?)
+        """, (cust_id, "customer@jaibhavani.com", hash_password("customer123"), "Priya", "Sharma", "+91 9811122233", "+919811122233", "customer", now, now))
 
         # Default address for customer
         addr_id = str(uuid.uuid4())
         c.execute("""
-        INSERT INTO addresses (id, user_id, label, recipient_name, phone, address_line1, address_line2, city, state, postal_code, country, is_default)
+        INSERT OR IGNORE INTO addresses (id, user_id, label, recipient_name, phone, address_line1, address_line2, city, state, postal_code, country, is_default)
         VALUES (?, ?, 'Home', 'Priya Sharma', '+91 9811122233', 'Plot 42, Jubilee Hills Road 36', 'Near Metro Station', 'Hyderabad', 'Telangana', '500033', 'India', 1)
         """, (addr_id, cust_id))
 

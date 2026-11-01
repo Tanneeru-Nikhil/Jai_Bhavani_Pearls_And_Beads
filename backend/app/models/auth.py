@@ -20,12 +20,15 @@ class User(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     phone_e164 = Column(String(32), unique=True, nullable=False, index=True)
+    phone = Column(String(32), nullable=True)  # legacy alias
     email = Column(String(255), unique=True, nullable=True, index=True)
     password_hash = Column(String(255), nullable=True)
     first_name = Column(String(100), nullable=True, default="Valued")
     last_name = Column(String(100), nullable=True, default="Customer")
     role = Column(String(32), nullable=False, default="customer")
     account_status = Column(String(32), nullable=False, default="active")  # pending, active, suspended, disabled
+    is_active = Column(Boolean, default=True, nullable=True)
+    email_verified = Column(Boolean, default=True, nullable=True)
     phone_verified_at = Column(DateTime(timezone=True), nullable=True)
     last_authenticated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)

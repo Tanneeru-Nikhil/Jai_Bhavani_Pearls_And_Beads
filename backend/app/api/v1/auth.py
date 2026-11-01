@@ -1,6 +1,7 @@
 import logging
+from typing import Optional
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, Body
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -241,12 +242,12 @@ def verify_otp(
 
 @router.post("/refresh", response_model=RefreshTokenResponse)
 def refresh_token(
-    req: RefreshTokenRequest,
     request: Request,
     response: Response,
+    req: Optional[RefreshTokenRequest] = Body(default=None),
     db: Session = Depends(get_db)
 ):
-    token = req.refresh_token or request.cookies.get("refresh_token")
+    token = (req.refresh_token if (req and req.refresh_token) else None) or request.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
 

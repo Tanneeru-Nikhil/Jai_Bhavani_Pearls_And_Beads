@@ -65,8 +65,6 @@ class Settings(BaseSettings):
     def get_trusted_proxies(self) -> List[str]:
         return [ip.strip() for ip in self.TRUSTED_PROXY_IPS.split(",") if ip.strip()]
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 settings = Settings()
